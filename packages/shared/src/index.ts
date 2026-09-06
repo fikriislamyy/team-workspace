@@ -20,6 +20,7 @@ export interface ServerToClientEvents {
     "channel:created": (channel: { id: string; name: string }) => void;
     "typing:update": (p: { channelId: string; userId: string; typing: boolean }) => void;
     "presence:update": (p: { userId: string; online: boolean }) => void;
+    "presence:snapshot": (p: { online: string[] }) => void;
 }
 
 export interface ClientToServerEvents {

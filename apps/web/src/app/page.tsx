@@ -1,69 +1,94 @@
-import Image from "next/image";
+"use client";
+
+import { useEffect, useState } from "react";
+import { connectSocket, type AppSocket } from "@/lib/socket";
+
+const API =
+  typeof window !== "undefined"
+    ? `${window.location.protocol}//${window.location.hostname}:3001`
+    : "http://localhost:3001";
 
 export default function Home() {
+  const [name, setName] = useState("Fikri");
+  const [userId, setUserId] = useState("1");
+  const [status, setStatus] = useState<string>("disconnected");
+  const [online, setOnline] = useState<string[]>([]);
+  const [socket, setSocket] = useState<AppSocket | null>(null);
+
+  async function login() {
+    setStatus("logging in…");
+    try {
+      const res = await fetch(`${API}/auth/dev/login`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          id: userId,
+          name,
+          email: `${name.toLowerCase()}@example.com`,
+          orgId: "org_1",
+        }),
+      });
+
+      const { token } = await res.json();
+      const s = connectSocket(token);
+      setSocket(s);
+
+      s.on("connect", () => setStatus(`connected (${s.id})`));
+      s.on("disconnect", () => setStatus("disconnected"));
+      s.on("connect_error", (e) => setStatus(`error: ${e.message}`));
+      s.on("presence:snapshot", ({ online }) => setOnline(online));
+      s.on("presence:update", ({ userId, online: isOn }) =>
+        setOnline((prev) =>
+          isOn ? [...new Set([...prev, userId])] : prev.filter((u) => u !== userId),
+        ),
+      );
+    } catch (e) {
+      setStatus(`login failed: ${(e as Error).message}`);
+    }
+  }
+
+  useEffect(() => {
+    return () => {
+      socket?.disconnect();
+    };
+  }, [socket]);
+
   return (
-    <div className="flex flex-col flex-1 items-center justify-center bg-zinc-50 font-sans dark:bg-black">
-      <main className="flex flex-1 w-full max-w-3xl flex-col items-center justify-between py-32 px-16 bg-white dark:bg-black sm:items-start">
-        <Image
-          className="dark:invert h-5 w-[100px]"
-          src="/next.svg"
-          alt="Next.js logo"
-          width={100}
-          height={20}
-          priority
-        />
-        <div className="flex flex-col items-center gap-6 text-center sm:items-start sm:text-left">
-          <h1 className="max-w-xs text-3xl font-semibold leading-10 tracking-tight text-black dark:text-zinc-50">
-            To get started, edit the{" "}
-            <code className="rounded bg-black/[.06] px-1.5 py-0.5 font-mono text-[0.9em] dark:bg-white/[.08]">
-              page.tsx
-            </code>{" "}
-            file.
-          </h1>
-          <p className="max-w-md text-lg leading-8 text-zinc-600 dark:text-zinc-400">
-            Looking for a starting point or more instructions? Head over to{" "}
-            <a
-              href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Templates
-            </a>{" "}
-            or the{" "}
-            <a
-              href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Learning
-            </a>{" "}
-            center.
-          </p>
-        </div>
-        <div className="flex flex-col gap-4 text-base font-medium sm:flex-row">
-          <a
-            className="flex h-12 w-full items-center justify-center gap-2 rounded-full bg-foreground px-5 text-background transition-colors hover:bg-[#383838] dark:hover:bg-[#ccc] md:w-[158px]"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <Image
-              className="dark:invert h-[14px] w-4"
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={16}
-              height={14}
-            />
-            Deploy Now
-          </a>
-          <a
-            className="flex h-12 w-full items-center justify-center rounded-full border border-solid border-black/[.08] px-5 transition-colors hover:border-transparent hover:bg-black/[.04] dark:border-white/[.145] dark:hover:bg-[#1a1a1a] md:w-[158px]"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Documentation
-          </a>
-        </div>
-      </main>
-    </div>
+    <main className="mx-auto flex max-w-md flex-col gap-4 p-6">
+      <h1 className="text-xl font-semibold">Socket harness</h1>
+
+      <input
+        className="rounded border px-3 py-2"
+        value={userId}
+        onChange={(e) => setUserId(e.target.value)}
+        placeholder="user id"
+      />
+      <input
+        className="rounded border px-3 py-2"
+        value={name}
+        onChange={(e) => setName(e.target.value)}
+        placeholder="name"
+      />
+
+      <button
+        onClick={login}
+        className="rounded bg-black px-4 py-2 text-white"
+      >
+        Login &amp; connect
+      </button>
+
+      <p className="text-sm">
+        Status: <span className="font-mono">{status}</span>
+      </p>
+
+      <div>
+        <p className="text-sm font-medium">Online ({online.length})</p>
+        <ul className="font-mono text-sm">
+          {online.map((u) => (
+            <li key={u}>{u}</li>
+          ))}
+        </ul>
+      </div>
+    </main>
   );
 }
