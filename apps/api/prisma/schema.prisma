@@ -1,0 +1,117 @@
+generator client {
+  provider = "prisma-client"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+// ─── Identity mirror ────────────────────────────────────────────────
+// id IS the Laravel user id. Never generated here.
+model User {
+  id        String   @id
+  orgId     String
+  name      String
+  email     String
+  avatarUrl String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  memberships Membership[]
+  messages    Message[]
+  devices     Device[]
+
+  @@index([orgId])
+}
+
+// ─── Channels ───────────────────────────────────────────────────────
+enum ChannelType {
+  STANDARD
+  DIRECT
+  DOCUMENT
+}
+
+model Channel {
+  id                String      @id @default(cuid())
+  orgId             String
+  name              String
+  type              ChannelType @default(STANDARD)
+  laravelDocumentId String?     @unique
+  archivedAt        DateTime?
+  createdAt         DateTime    @default(now())
+
+  members  Membership[]
+  messages Message[]
+
+  @@index([orgId, archivedAt])
+}
+
+model Membership {
+  id         String    @id @default(cuid())
+  userId     String
+  channelId  String
+  lastReadAt DateTime?
+  joinedAt   DateTime  @default(now())
+
+  user    User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  channel Channel @relation(fields: [channelId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, channelId])
+  @@index([channelId])
+}
+
+// ─── Messages ───────────────────────────────────────────────────────
+enum MessageKind {
+  TEXT
+  FILE
+  SYSTEM
+}
+
+model Message {
+  id        String      @id @default(cuid())
+  channelId String
+  authorId  String?
+  kind      MessageKind @default(TEXT)
+  body      String
+  metadata  Json?
+  createdAt DateTime    @default(now())
+  editedAt  DateTime?
+  deletedAt DateTime?
+
+  channel     Channel      @relation(fields: [channelId], references: [id], onDelete: Cascade)
+  author      User?        @relation(fields: [authorId], references: [id], onDelete: SetNull)
+  attachments Attachment[]
+
+  @@index([channelId, createdAt])
+}
+
+model Attachment {
+  id         String   @id @default(cuid())
+  messageId  String
+  storageKey String
+  filename   String
+  mimeType   String
+  sizeBytes  Int
+  createdAt  DateTime @default(now())
+
+  message Message @relation(fields: [messageId], references: [id], onDelete: Cascade)
+}
+
+// ─── Notifications ──────────────────────────────────────────────────
+model Device {
+  id        String   @id @default(cuid())
+  userId    String
+  token     String   @unique
+  platform  String
+  createdAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+// ─── Idempotency guard for Laravel events ───────────────────────────
+model ProcessedEvent {
+  id          String   @id   // Redis stream entry id
+  eventType   String
+  processedAt DateTime @default(now())
+}
