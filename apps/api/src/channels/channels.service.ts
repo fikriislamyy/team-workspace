@@ -28,7 +28,10 @@ export class ChannelsService {
                             where: { deletedAt: null },
                             orderBy: { createdAt: "desc" },
                             take: 1,
-                            include: { author: { select: { name: true } } },
+                            include: {
+                                author: { select: { name: true } },
+                                attachments: { select: { mimeType: true }, take: 1 },
+                            },
                         },
                     },
                 },
@@ -59,6 +62,11 @@ export class ChannelsService {
                             body: last.body,
                             authorName: last.author?.name ?? null,
                             createdAt: last.createdAt.toISOString(),
+                            attachmentKind: last.attachments[0]
+                                ? last.attachments[0].mimeType.startsWith("image/")
+                                    ? "image"
+                                    : "file"
+                                : null,
                         }
                         : null,
                     unreadCount,

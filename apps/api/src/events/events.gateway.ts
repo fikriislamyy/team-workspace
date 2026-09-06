@@ -10,7 +10,7 @@ import {
     WebSocketServer,
 } from "@nestjs/websockets";
 import type { Server, Socket } from "socket.io";
-import type { AuthedUser, MessageDto } from "@team-workspace/shared";
+import type { AuthedUser, MessageDto, AttachmentInput, } from "@team-workspace/shared";
 import { AuthService } from "../auth/auth.service.js";
 import { PresenceService } from "../presence/presence.service.js";
 import { ChannelsService } from "../channels/channels.service.js";
@@ -102,10 +102,16 @@ export class EventsGateway
     @SubscribeMessage("message:send")
     async send(
         @ConnectedSocket() socket: AppSocket,
-        @MessageBody() body: { channelId: string; body: string; clientId: string },
+        @MessageBody()
+        body: {
+            channelId: string;
+            body: string;
+            clientId: string;
+            attachment?: AttachmentInput;
+        },
     ): Promise<{ ok: boolean; message?: MessageDto; error?: string }> {
-        const text = body.body?.trim();
-        if (!text) return { ok: false, error: "empty" };
+        const text = body.body?.trim() ?? "";
+        if (!text && !body.attachment) return { ok: false, error: "empty" };
         if (text.length > 4000) return { ok: false, error: "too_long" };
 
         try {
@@ -114,6 +120,7 @@ export class EventsGateway
                 body.channelId,
                 text,
                 body.clientId,
+                body.attachment,
             );
 
             // Broadcast to everyone in the room except the sender — the sender
@@ -124,8 +131,10 @@ export class EventsGateway
             });
 
             return { ok: true, message };
-        } catch {
-            return { ok: false, error: "forbidden" };
+        } catch (err) {
+            const e = err as Error;
+            this.logger.error(`message:send failed: ${e.message}`, e.stack);
+            return { ok: false, error: e.message || "send_failed" };
         }
     }
 

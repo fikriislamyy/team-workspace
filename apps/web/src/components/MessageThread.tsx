@@ -2,6 +2,7 @@
 
 import { useEffect, useRef } from "react";
 import { useChat } from "@/store/chat";
+import { Attachment } from "./Attachment";
 
 export function MessageThread({ channelId }: { channelId: string }) {
     const messages = useChat((s) => s.messages[channelId]) ?? [];
@@ -47,9 +48,15 @@ export function MessageThread({ channelId }: { channelId: string }) {
                                     {m.author?.name}
                                 </p>
                             )}
-                            <p className="whitespace-pre-wrap break-words text-[15px]">
-                                {m.body}
-                            </p>
+                            {m.attachments?.map((a) => (
+                                <div key={a.id} className="mb-1">
+                                    <Attachment a={a} mine={mine} />
+                                </div>
+                            ))}
+
+                            {m.body && (
+                                <p className="whitespace-pre-wrap break-words text-[15px]">{m.body}</p>
+                            )}
                             <p
                                 className={`mt-0.5 text-right text-[10px] ${mine ? "text-emerald-100" : "text-neutral-500"
                                     }`}

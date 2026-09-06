@@ -23,6 +23,7 @@ interface ChatState {
     setOnline: (ids: string[]) => void;
     updateOnline: (id: string, online: boolean) => void;
     clearUnread: (channelId: string) => void;
+    removeOptimistic: (channelId: string, clientId: string) => void;
 }
 
 export const useChat = create<ChatState>((set) => ({
@@ -68,6 +69,11 @@ export const useChat = create<ChatState>((set) => ({
                                 body: msg.body,
                                 authorName: msg.author?.name ?? null,
                                 createdAt: msg.createdAt,
+                                attachmentKind: msg.attachments?.[0]
+                                    ? msg.attachments[0].mimeType.startsWith("image/")
+                                        ? "image"
+                                        : "file"
+                                    : null,
                             },
                         }
                         : c,
@@ -110,5 +116,15 @@ export const useChat = create<ChatState>((set) => ({
             channels: s.channels.map((c) =>
                 c.id === channelId ? { ...c, unreadCount: 0 } : c,
             ),
+        })),
+
+    removeOptimistic: (channelId: string, clientId: string) =>
+        set((s) => ({
+            messages: {
+                ...s.messages,
+                [channelId]: (s.messages[channelId] ?? []).filter(
+                    (m) => m.clientId !== clientId,
+                ),
+            },
         })),
 }));

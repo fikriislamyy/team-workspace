@@ -1,6 +1,17 @@
 "use client";
 
 import { useChat } from "@/store/chat";
+import type { ChannelDto } from "@team-workspace/shared";
+
+function previewText(last: ChannelDto["lastMessage"]): string {
+    if (!last) return "No messages yet";
+    const prefix = last.authorName ? `${last.authorName}: ` : "";
+    const body = last.body?.trim();
+    if (body) return `${prefix}${body}`;
+    if (last.attachmentKind === "image") return `${prefix}📷 Photo`;
+    if (last.attachmentKind === "file") return `${prefix}📄 Document`;
+    return prefix;
+}
 
 export function ChannelList({ onPick }: { onPick: (id: string) => void }) {
     const channels = useChat((s) => s.channels);
@@ -13,8 +24,8 @@ export function ChannelList({ onPick }: { onPick: (id: string) => void }) {
                     <button
                         onClick={() => onPick(c.id)}
                         className={`flex w-full items-start gap-3 px-4 py-3 text-left transition-colors ${activeId === c.id
-                                ? "bg-neutral-100 dark:bg-neutral-800"
-                                : "hover:bg-neutral-50 dark:hover:bg-neutral-900"
+                            ? "bg-neutral-100 dark:bg-neutral-800"
+                            : "hover:bg-neutral-50 dark:hover:bg-neutral-900"
                             }`}
                     >
                         <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-emerald-600 text-sm font-semibold text-white">
@@ -31,9 +42,7 @@ export function ChannelList({ onPick }: { onPick: (id: string) => void }) {
                                 )}
                             </div>
                             <p className="truncate text-sm text-neutral-500">
-                                {c.lastMessage
-                                    ? `${c.lastMessage.authorName ?? ""}: ${c.lastMessage.body}`
-                                    : "No messages yet"}
+                                {previewText(c.lastMessage)}
                             </p>
                         </div>
                     </button>

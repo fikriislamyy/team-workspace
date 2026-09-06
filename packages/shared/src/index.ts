@@ -24,6 +24,7 @@ export interface ChannelDto {
         body: string;
         authorName: string | null;
         createdAt: string;
+        attachmentKind?: "image" | "file" | null;
     } | null;
     unreadCount: number;
 }
@@ -35,7 +36,7 @@ export interface MessageDto {
     body: string;
     createdAt: string;
     author: UserSummary | null;
-    /** Echoed back so the sender can reconcile its optimistic copy. */
+    attachments?: AttachmentDto[];
     clientId?: string;
 }
 
@@ -63,9 +64,34 @@ export interface ClientToServerEvents {
     ) => void;
     "channel:leave": (channelId: string) => void;
     "message:send": (
-        p: { channelId: string; body: string; clientId: string },
+        p: {
+            channelId: string;
+            body: string;
+            clientId: string;
+            attachment?: AttachmentInput;
+        },
         ack: (res: { ok: boolean; message?: MessageDto; error?: string }) => void,
     ) => void;
     "typing:set": (p: { channelId: string; typing: boolean }) => void;
     "channel:read": (p: { channelId: string }) => void;
+}
+
+export interface AttachmentDto {
+    id: string;
+    filename: string;
+    mimeType: string;
+    sizeBytes: number;
+    width?: number | null;
+    height?: number | null;
+    /** Short-lived signed URL, regenerated on every read. */
+    url: string;
+}
+
+export interface AttachmentInput {
+    storageKey: string;
+    filename: string;
+    mimeType: string;
+    sizeBytes: number;
+    width?: number;
+    height?: number;
 }

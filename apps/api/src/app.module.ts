@@ -1,6 +1,8 @@
 import { Module } from "@nestjs/common";
 import { ConfigModule } from "@nestjs/config";
 import { AppController } from "./app.controller.js";
+import { StorageModule } from "./storage/storage.module.js";
+import { UploadsModule } from "./uploads/uploads.module.js";
 import { AppService } from "./app.service.js";
 import { AuthModule } from "./auth/auth.module.js";
 import { EventsModule } from "./events/events.module.js";
@@ -16,6 +18,8 @@ import { RedisModule } from "./redis/redis.module.js";
     AuthModule,
     PresenceModule,
     EventsModule,
+    StorageModule,
+    UploadsModule
   ],
   controllers: [AppController],
   providers: [AppService],
