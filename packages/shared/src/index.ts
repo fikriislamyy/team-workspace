@@ -6,46 +6,66 @@ export interface AuthedUser {
     avatarUrl?: string;
 }
 
+export interface UserSummary {
+    id: string;
+    name: string;
+    avatarUrl?: string;
+}
+
+export type ChannelKind = "STANDARD" | "DIRECT" | "DOCUMENT";
+
+export interface ChannelDto {
+    id: string;
+    name: string;
+    type: ChannelKind;
+    laravelDocumentId?: string | null;
+    memberCount: number;
+    lastMessage?: {
+        body: string;
+        authorName: string | null;
+        createdAt: string;
+    } | null;
+    unreadCount: number;
+}
+
 export interface MessageDto {
     id: string;
     channelId: string;
-    authorId: string | null;
     kind: "TEXT" | "FILE" | "SYSTEM";
     body: string;
     createdAt: string;
+    author: UserSummary | null;
+    /** Echoed back so the sender can reconcile its optimistic copy. */
+    clientId?: string;
+}
+
+export interface MessagePage {
+    messages: MessageDto[];
+    nextCursor: string | null;
 }
 
 export interface ServerToClientEvents {
     "message:new": (msg: MessageDto) => void;
-    "channel:created": (channel: { id: string; name: string }) => void;
-    "typing:update": (p: { channelId: string; userId: string; typing: boolean }) => void;
+    "channel:created": (channel: ChannelDto) => void;
+    "typing:update": (p: {
+        channelId: string;
+        user: UserSummary;
+        typing: boolean;
+    }) => void;
     "presence:update": (p: { userId: string; online: boolean }) => void;
     "presence:snapshot": (p: { online: string[] }) => void;
 }
 
 export interface ClientToServerEvents {
-    "channel:join": (channelId: string, ack: (ok: boolean) => void) => void;
+    "channel:join": (
+        channelId: string,
+        ack: (res: { ok: boolean; error?: string }) => void,
+    ) => void;
+    "channel:leave": (channelId: string) => void;
     "message:send": (
         p: { channelId: string; body: string; clientId: string },
-        ack: (msg: MessageDto) => void,
+        ack: (res: { ok: boolean; message?: MessageDto; error?: string }) => void,
     ) => void;
     "typing:set": (p: { channelId: string; typing: boolean }) => void;
-}
-
-// Events published by the Laravel e-sign app onto the Redis stream.
-export type LaravelEventType =
-    | "document.sent_for_approval"
-    | "document.approved"
-    | "document.rejected"
-    | "document.signed"
-    | "document.completed";
-
-export interface LaravelEvent {
-    type: LaravelEventType;
-    orgId: string;
-    documentId: string;
-    documentTitle: string;
-    actorId: string;
-    participantIds: string[];
-    occurredAt: string;
+    "channel:read": (p: { channelId: string }) => void;
 }
