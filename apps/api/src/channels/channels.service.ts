@@ -1,4 +1,4 @@
-import { ForbiddenException, Injectable, NotFoundException } from "@nestjs/common";
+import { ForbiddenException, Injectable } from "@nestjs/common";
 import type { AuthedUser, ChannelDto } from "@team-workspace/shared";
 import { PrismaService } from "../prisma/prisma.service.js";
 
@@ -15,6 +15,15 @@ export class ChannelsService {
         if (!membership) {
             throw new ForbiddenException("Not a member of this channel");
         }
+    }
+
+    /** Every channel this user belongs to. Used to join socket rooms on connect. */
+    async memberChannelIds(userId: string): Promise<string[]> {
+        const rows = await this.prisma.membership.findMany({
+            where: { userId, channel: { archivedAt: null } },
+            select: { channelId: true },
+        });
+        return rows.map((r) => r.channelId);
     }
 
     async list(user: AuthedUser): Promise<ChannelDto[]> {
@@ -64,8 +73,8 @@ export class ChannelsService {
                             createdAt: last.createdAt.toISOString(),
                             attachmentKind: last.attachments[0]
                                 ? last.attachments[0].mimeType.startsWith("image/")
-                                    ? "image"
-                                    : "file"
+                                    ? ("image" as const)
+                                    : ("file" as const)
                                 : null,
                         }
                         : null,
@@ -107,6 +116,14 @@ export class ChannelsService {
             lastMessage: null,
             unreadCount: 0,
         };
+    }
+
+    async name(channelId: string): Promise<string | null> {
+        const channel = await this.prisma.channel.findUnique({
+            where: { id: channelId },
+            select: { name: true },
+        });
+        return channel?.name ?? null;
     }
 
     async markRead(userId: string, channelId: string): Promise<void> {

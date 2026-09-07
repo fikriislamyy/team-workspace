@@ -15,6 +15,8 @@ import { AuthService } from "../auth/auth.service.js";
 import { PresenceService } from "../presence/presence.service.js";
 import { ChannelsService } from "../channels/channels.service.js";
 import { MessagesService } from "../messages/messages.service.js";
+import { NotificationsService } from "../notifications/notifications.service.js";
+import { PrismaService } from "../prisma/prisma.service.js";
 
 type AppSocket = Socket & { data: { user: AuthedUser } };
 
@@ -31,6 +33,8 @@ export class EventsGateway
         private readonly presence: PresenceService,
         private readonly channels: ChannelsService,
         private readonly messages: MessagesService,
+        private readonly notifications: NotificationsService,
+        private readonly prisma: PrismaService,
     ) { }
 
     afterInit(server: Server): void {
@@ -53,6 +57,9 @@ export class EventsGateway
         await socket.join(`org:${user.orgId}`);
         await socket.join(`user:${user.id}`);
 
+        const channelIds = await this.channels.memberChannelIds(user.id);
+        await Promise.all(channelIds.map((id) => socket.join(`channel:${id}`)));
+
         if (await this.presence.connect(user.orgId, user.id)) {
             this.server
                 .to(`org:${user.orgId}`)
@@ -69,6 +76,8 @@ export class EventsGateway
     async handleDisconnect(socket: AppSocket): Promise<void> {
         const user = socket.data?.user;
         if (!user) return;
+
+        await this.presence.setFocus(user.id, null);
 
         if (await this.presence.disconnect(user.orgId, user.id)) {
             this.server
@@ -130,6 +139,19 @@ export class EventsGateway
                 clientId: undefined,
             });
 
+            const channel = await this.prisma.channel.findUnique({
+                where: { id: body.channelId },
+                select: { name: true },
+            });
+
+            void this.notifications
+                .notifyNewMessage(
+                    socket.data.user.orgId,
+                    channel?.name ?? "New message",
+                    message,
+                )
+                .catch((e) => this.logger.warn(`notify failed: ${e.message}`));
+
             return { ok: true, message };
         } catch (err) {
             const e = err as Error;
@@ -158,5 +180,16 @@ export class EventsGateway
         @MessageBody() body: { channelId: string },
     ): Promise<void> {
         await this.channels.markRead(socket.data.user.id, body.channelId);
+    }
+
+    @SubscribeMessage("focus:set")
+    async focus(
+        @ConnectedSocket() socket: AppSocket,
+        @MessageBody() body: { channelId: string | null },
+    ): Promise<void> {
+        this.logger.debug(
+            `focus:set ${socket.data.user.id} -> ${body.channelId ?? "none"}`,
+        );
+        await this.presence.setFocus(socket.data.user.id, body.channelId);
     }
 }

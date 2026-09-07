@@ -63,6 +63,7 @@ export interface ClientToServerEvents {
         ack: (res: { ok: boolean; error?: string }) => void,
     ) => void;
     "channel:leave": (channelId: string) => void;
+    "focus:set": (p: { channelId: string | null }) => void;
     "message:send": (
         p: {
             channelId: string;
