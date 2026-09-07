@@ -1,10 +1,14 @@
 import { ForbiddenException, Injectable } from "@nestjs/common";
 import type { AuthedUser, ChannelDto } from "@team-workspace/shared";
 import { PrismaService } from "../prisma/prisma.service.js";
+import { ChannelEventsService } from "../events/channel-events.service.js";
 
 @Injectable()
 export class ChannelsService {
-    constructor(private readonly prisma: PrismaService) { }
+    constructor(
+        private readonly prisma: PrismaService,
+        private readonly events: ChannelEventsService,
+    ) { }
 
     /** Throws unless the user is a member. Every channel operation goes through this. */
     async assertMember(userId: string, channelId: string): Promise<void> {
@@ -107,7 +111,7 @@ export class ChannelsService {
             include: { _count: { select: { members: true } } },
         });
 
-        return {
+        const dto: ChannelDto = {
             id: channel.id,
             name: channel.name,
             type: channel.type,
@@ -116,6 +120,12 @@ export class ChannelsService {
             lastMessage: null,
             unreadCount: 0,
         };
+
+        // Tell the gateway so every member's socket joins the new room and
+        // sees the channel appear without a reload.
+        this.events.emitChannelCreated({ channel: dto, memberIds: ids });
+
+        return dto;
     }
 
     async name(channelId: string): Promise<string | null> {

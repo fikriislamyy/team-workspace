@@ -17,6 +17,7 @@ import { ChannelsService } from "../channels/channels.service.js";
 import { MessagesService } from "../messages/messages.service.js";
 import { NotificationsService } from "../notifications/notifications.service.js";
 import { PrismaService } from "../prisma/prisma.service.js";
+import { ChannelEventsService } from "./channel-events.service.js";
 
 type AppSocket = Socket & { data: { user: AuthedUser } };
 
@@ -35,6 +36,7 @@ export class EventsGateway
         private readonly messages: MessagesService,
         private readonly notifications: NotificationsService,
         private readonly prisma: PrismaService,
+        private readonly channelEvents: ChannelEventsService,
     ) { }
 
     afterInit(server: Server): void {
@@ -48,6 +50,18 @@ export class EventsGateway
                 this.logger.warn(`Rejected: ${(err as Error).message}`);
                 next(new Error("unauthorized"));
             }
+        });
+
+        this.channelEvents.onChannelCreated(({ channel, memberIds }) => {
+            void (async () => {
+                for (const userId of memberIds) {
+                    const sockets = await server.in(`user:${userId}`).fetchSockets();
+                    for (const s of sockets) {
+                        await s.join(`channel:${channel.id}`);
+                    }
+                    server.to(`user:${userId}`).emit("channel:created", channel);
+                }
+            })();
         });
     }
 

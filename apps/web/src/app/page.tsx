@@ -15,6 +15,7 @@ import {
 import { ChannelList } from "@/components/ChannelList";
 import { MessageThread } from "@/components/MessageThread";
 import { Composer } from "@/components/Composer";
+import { NewChannelDialog } from "@/components/NewChannelDialog";
 
 export default function Home() {
   const [userId, setUserId] = useState("1");
@@ -24,6 +25,7 @@ export default function Home() {
   const [canPush, setCanPush] = useState(false);
   const [pushOn, setPushOn] = useState(false);
   const [pushBusy, setPushBusy] = useState(false);
+  const [newChannelOpen, setNewChannelOpen] = useState(false);
 
   // Deep link captured at mount, opened once channels are loaded.
   const [pendingChannel, setPendingChannel] = useState<string | null>(null);
@@ -56,6 +58,9 @@ export default function Home() {
       socket.on("typing:update", ({ channelId, user, typing }) =>
         setTyping(channelId, user, typing),
       );
+      socket.on("channel:created", (channel) => {
+        useChat.getState().addChannel(channel);
+      });
       socket.on("connect_error", (e) => {
         if (e.message === "unauthorized") clearAuth();
       });
@@ -264,8 +269,22 @@ export default function Home() {
           }`}
       >
         <header className="border-b border-neutral-200 px-4 py-3 dark:border-neutral-800">
-          <h1 className="font-semibold">Channels</h1>
-          <p className="text-xs text-neutral-500">Signed in as {me.name}</p>
+          <div className="flex items-start justify-between">
+            <div>
+              <h1 className="font-semibold">Channels</h1>
+              <p className="text-xs text-neutral-500">
+                Signed in as {me.name}
+              </p>
+            </div>
+
+            <button
+              onClick={() => setNewChannelOpen(true)}
+              className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-emerald-600 text-lg text-white"
+              aria-label="New channel"
+            >
+              +
+            </button>
+          </div>
 
           <div className="mt-1 flex gap-3">
             {canPush && (
@@ -320,6 +339,14 @@ export default function Home() {
           </div>
         )}
       </section>
+      <NewChannelDialog
+        open={newChannelOpen}
+        onClose={() => setNewChannelOpen(false)}
+        onCreated={(channel) => {
+          useChat.getState().addChannel(channel);
+          void openChannel(channel.id);
+        }}
+      />
     </div>
   );
 }

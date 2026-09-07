@@ -15,6 +15,7 @@ interface ChatState {
     typing: Record<string, UserSummary[]>;
     online: Set<string>;
 
+    addChannel: (channel: ChannelDto) => void;
     setAuth: (token: string, me: { id: string; name: string }) => void;
     clearAuth: () => void;
     setChannels: (channels: ChannelDto[]) => void;
@@ -59,6 +60,12 @@ export const useChat = create<ChatState>()(
                 }),
 
             setChannels: (channels) => set({ channels }),
+            addChannel: (channel) =>
+                set((s) =>
+                    s.channels.some((c) => c.id === channel.id)
+                        ? s
+                        : { channels: [channel, ...s.channels] },
+                ),
             setActive: (activeChannelId) => set({ activeChannelId }),
 
             prependMessages: (channelId, msgs, cursor) =>

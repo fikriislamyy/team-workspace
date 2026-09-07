@@ -4,6 +4,7 @@ import { AppController } from "./app.controller.js";
 import { StorageModule } from "./storage/storage.module.js";
 import { UploadsModule } from "./uploads/uploads.module.js";
 import { NotificationsModule } from "./notifications/notifications.module.js";
+import { ChannelEventsModule } from "./events/channel-events.module.js";
 import { AppService } from "./app.service.js";
 import { AuthModule } from "./auth/auth.module.js";
 import { EventsModule } from "./events/events.module.js";
@@ -21,7 +22,8 @@ import { RedisModule } from "./redis/redis.module.js";
     EventsModule,
     StorageModule,
     UploadsModule,
-    NotificationsModule
+    NotificationsModule,
+    ChannelEventsModule
   ],
   controllers: [AppController],
   providers: [AppService],
