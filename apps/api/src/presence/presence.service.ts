@@ -29,4 +29,27 @@ export class PresenceService {
     async online(orgId: string): Promise<string[]> {
         return Object.keys(await this.redis.hgetall(this.key(orgId)));
     }
+
+    private focusKey(userId: string): string {
+        return `focus:${userId}`;
+    }
+
+    /** channelId, or null when the tab is hidden or no channel is open. */
+    async setFocus(userId: string, channelId: string | null): Promise<void> {
+        if (channelId) {
+            // TTL guards against a client that disconnects without clearing.
+            await this.redis.set(this.focusKey(userId), channelId, "EX", 300);
+        } else {
+            await this.redis.del(this.focusKey(userId));
+        }
+    }
+
+    async getFocus(userId: string): Promise<string | null> {
+        return this.redis.get(this.focusKey(userId));
+    }
+
+    async isOnline(orgId: string, userId: string): Promise<boolean> {
+        const count = await this.redis.hget(this.key(orgId), userId);
+        return Number(count ?? 0) > 0;
+    }
 }
